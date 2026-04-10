@@ -38,6 +38,19 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/PlusJackartaSans-Regular.ttf",
+            "./assets/fonts/PlusJackartaSans-Bold.ttf",
+            "./assets/fonts/PlusJackartaSans-Medium.ttf",
+            "./assets/fonts/PlusJackartaSans-SemiBold.ttf",
+            "./assets/fonts/PlusJackartaSans-ExtraBold.ttf",
+            "./assets/fonts/PlusJackartaSans-Light.ttf"
+          ]
+        }
       ]
     ],
     "experiments": {
