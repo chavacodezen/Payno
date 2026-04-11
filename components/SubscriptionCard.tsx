@@ -61,7 +61,7 @@ const SubscriptionCard = ({
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
-                  {paymentMethod?.trim()}
+                  {paymentMethod?.trim() ?? "Sin método de pago"}
                 </Text>
               </View>
             </View>
@@ -74,7 +74,7 @@ const SubscriptionCard = ({
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
-                  {plan?.trim()}
+                  {plan?.trim() ?? "Sin plan especificado"}
                 </Text>
               </View>
             </View>
