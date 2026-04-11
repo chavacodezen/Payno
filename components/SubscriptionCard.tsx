@@ -89,7 +89,7 @@ const SubscriptionCard = ({
                 >
                   {startDate
                     ? formatSubscriptionDateTime(startDate)
-                    : "Added long time ago"}
+                    : "Sin fecha de inicio"}
                 </Text>
               </View>
             </View>
@@ -104,7 +104,7 @@ const SubscriptionCard = ({
                 >
                   {renewalDate
                     ? formatSubscriptionDateTime(renewalDate)
-                    : "No renewal date"}
+                    : "Sin fecha de renovación"}
                 </Text>
               </View>
             </View>
@@ -117,7 +117,7 @@ const SubscriptionCard = ({
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
-                  {status ? formatStatusLabel(status) : "No status"}
+                  {status ? formatStatusLabel(status) : "Sin estatus"}
                 </Text>
               </View>
             </View>
