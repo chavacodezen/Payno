@@ -1,30 +1,75 @@
+import CreateSubscriptionModal from "@/components/CreateSubscriptionModal";
 import ListHeading from "@/components/ListHeading";
 import SubscriptionCard from "@/components/SubscriptionCard";
 import UpcomingSubscriptionCard from "@/components/UpcomingSubscriptionCard";
-import {
-  HOME_BALANCE,
-  HOME_SUBSCRIPTIONS,
-  HOME_USER,
-  UPCOMING_SUBSCRIPTIONS,
-} from "@/constants/data";
+import { HOME_BALANCE } from "@/constants/data";
 import { icons } from "@/constants/icons";
 import images from "@/constants/images";
 import "@/global.css";
+import { useSubscriptionStore } from "@/lib/subscriptionStore";
 import { formatCurrency } from "@/lib/utils";
 import { useUser } from "@clerk/expo";
 import dayjs from "dayjs";
 import { styled } from "nativewind";
-import { useState } from "react";
-import { FlatList, Image, Text, View } from "react-native";
+import { usePostHog } from "posthog-react-native";
+import { useMemo, useState } from "react";
+import { FlatList, Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
-
 const SafeAreaView = styled(RNSafeAreaView);
 
 export default function App() {
+  const { user } = useUser();
+  const posthog = usePostHog();
   const [expandedSubscriptionId, setExpandedSubscriptionId] = useState<
     string | null
   >(null);
-  const { user } = useUser();
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const { subscriptions, addSubscription } = useSubscriptionStore();
+
+  // Get upcoming subscriptions (active subscriptions with renewal date within next 7 days)
+  const upcomingSubscriptions = useMemo(() => {
+    const now = dayjs();
+    const nextWeek = now.add(7, "days");
+    return subscriptions
+      .filter(
+        (sub) =>
+          sub.status === "active" &&
+          dayjs(sub.renewalDate).isAfter(now) &&
+          dayjs(sub.renewalDate).isBefore(nextWeek),
+      )
+      .sort((a, b) => dayjs(a.renewalDate).diff(dayjs(b.renewalDate)));
+  }, [subscriptions]);
+
+  const handleSubscriptionPress = (item: Subscription) => {
+    const isExpanding = expandedSubscriptionId !== item.id;
+    setExpandedSubscriptionId((currentId) =>
+      currentId === item.id ? null : item.id,
+    );
+    posthog.capture(
+      isExpanding ? "subscription_expanded" : "subscription_collapsed",
+      {
+        subscription_name: item.name,
+        subscription_id: item.id,
+      },
+    );
+  };
+
+  const handleCreateSubscription = (newSubscription: Subscription) => {
+    addSubscription(newSubscription);
+    posthog.capture("subscription_created", {
+      subscription_name: newSubscription.name,
+      subscription_price: newSubscription.price,
+      subscription_frequency: newSubscription.frequency,
+      subscription_category: newSubscription.category,
+    });
+  };
+
+  // Get user display name: firstName, fullName, or email
+  const displayName =
+    user?.firstName ||
+    user?.fullName ||
+    user?.emailAddresses[0]?.emailAddress ||
+    "User";
 
   return (
     <SafeAreaView className="flex-1 bg-background p-5">
@@ -33,16 +78,23 @@ export default function App() {
           <>
             <View className="home-header">
               <View className="home-user">
-                <Image source={images.avatar} className="home-avatar" />
-                <Text className="home-user-name">
-                  Hola, {user?.firstName ?? user?.fullName ?? HOME_USER.name}
-                </Text>
+                <Image
+                  source={
+                    user?.imageUrl ? { uri: user.imageUrl } : images.avatar
+                  }
+                  className="home-avatar"
+                />
+                <Text className="home-user-name">{displayName}</Text>
               </View>
-              <Image source={icons.add} className="home-add-icon" />
+
+              <Pressable onPress={() => setIsModalVisible(true)}>
+                <Image source={icons.add} className="home-add-icon" />
+              </Pressable>
             </View>
 
             <View className="home-balance-card">
               <Text className="home-balance-label">Balance</Text>
+
               <View className="home-balance-row">
                 <Text className="home-balance-amount">
                   {formatCurrency(HOME_BALANCE.amount)}
@@ -55,8 +107,9 @@ export default function App() {
 
             <View className="mb-5">
               <ListHeading title="Próximos Pagos" />
+
               <FlatList
-                data={UPCOMING_SUBSCRIPTIONS}
+                data={upcomingSubscriptions}
                 renderItem={({ item }) => (
                   <UpcomingSubscriptionCard {...item} />
                 )}
@@ -64,7 +117,11 @@ export default function App() {
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 ListEmptyComponent={
-                  <Text className="home-empty-state">Nada por aquí</Text>
+                  <Text className="home-empty-state">
+                    {
+                      "No tienes algún pago próximo.\nPro tip: Asegúrate de tener las fechas actualizadas."
+                    }
+                  </Text>
                 }
               />
             </View>
@@ -72,26 +129,30 @@ export default function App() {
             <ListHeading title="Mis cuentas" />
           </>
         )}
-        data={HOME_SUBSCRIPTIONS}
+        data={subscriptions}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <SubscriptionCard
             {...item}
             expanded={expandedSubscriptionId === item.id}
-            onPress={() =>
-              setExpandedSubscriptionId((currentId) =>
-                currentId === item.id ? null : item.id,
-              )
-            }
+            onPress={() => handleSubscriptionPress(item)}
           />
         )}
-        keyExtractor={(item) => item.id}
         extraData={expandedSubscriptionId}
         ItemSeparatorComponent={() => <View className="h-4" />}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <Text className="home-empty-state">No hay cuentas pendientes</Text>
+          <Text className="home-empty-state">
+            {"No hay cuentas pendientes. \nAgrega alguna."}
+          </Text>
         }
         contentContainerClassName="pb-30"
+      />
+
+      <CreateSubscriptionModal
+        visible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+        onSubmit={handleCreateSubscription}
       />
     </SafeAreaView>
   );
